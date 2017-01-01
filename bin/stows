@@ -1,0 +1,153 @@
+#!/bin/bash
+# Copyright 2016 Don March <don@ohspite.net>
+
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+readonly script_name="stows"
+readonly version_number="0.1.0"
+
+readonly help_msg="\
+Usage: $script_name [OPTION]... [STOW_OPTION]...
+
+Stow all packages in all stow directories, either in the current directory or in
+COLLECTION.
+
+Options:
+  -c COLLECTION  run stow in the child directories of COLLECTION
+  -f             do not check for .stow files in stow dirs
+  -q             quiet mode
+  -V             display version and exit
+  -h             display this help and exit
+
+Using the terminology of stow, a \"stows collection\" is a directory that
+contains one or more \"stow directories,\" which themselves contain one or more
+\"package directories.\" Stow is used to install symlinks pointing to the
+contents of package directories in a \"target directory,\" such as \$HOME.
+
+All command line parameters that do not match any of the above options are
+passed to stow itself so that the target and other options can be set; for
+example, \`stows -t \$HOME --restow -c \$HOME/stow\` (see the stow manpage).
+
+Each internal call to stow is made with the working directory set to the one of
+the stow directories, so the \"--dir\" stow option should not be specified.
+
+Since stow directories in a collection will frequently be installed to the
+same target, stows checks that a .stow file exists in each stow directory unless
+the '-f' option is used. The existence of these files helps stow properly merge
+symlinks from multiple stow directories.
+
+Frequent options like \"--target=../../\" and \"--restow\" can be put in a
+.stowrc file placed in each stow directory. In this case just running \`stows -c
+\$HOME/stow\` is sufficient. You most likely want to specify at least the target
+directory in .stowrc files; it simplifies the arguments passed to stows and
+facilitates stowing multiple stow directories in different targets directories
+by running one command. (See \"Resource Files\" in \`info stow\` for .stowrc
+documentation.)
+
+If the target directory is not given on the command line or in a .stowrc file,
+stow will use the stows collection directory as the target (since it is the
+parent directory of each stow directory); this is almost definitely not what you
+want. "
+
+readonly usage_msg="Try '$script_name' -h' for more information."
+
+readonly version_msg="\
+$script_name $version_number
+
+Copyright 2016 Don March.
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.
+This is free software: you are free to change and redistribute it. There is NO
+WARRANTY, to the extent permitted by law.
+"
+
+not_being_sourced () { [[ "$0" == "$BASH_SOURCE" ]]; }
+not_being_sourced && set -u
+set -o pipefail
+
+main () {
+    parse_args "$@"
+
+    for stow_dir in "$stow_collection_dir"/*/; do
+        if [[ -z "$force" && ! -f "$stow_dir".stow ]]; then
+            [[ -z "$quiet" ]] && echo "skipping stow directory without a .stow file: $stow_dir"
+            continue
+        fi
+        [[ -z "$quiet" ]] && echo "stowing $stow_dir ..."
+
+        # We have to change the working directory so that stow will read the .stowrc file.
+        (cd "$stow_dir" && \
+             # Send the stow package names (dirnames without slashes) to xargs. I do
+             # not see a way to do this with exec/execdir in find without creating
+             # subprocesses.
+            find -L . -mindepth 1 -maxdepth 1 -type d -printf "%f\0" | \
+            xargs -0 stow $stow_options)
+
+        # While looping over the packages is simpler than the find statement, it
+        # can take much longer than running stow one time with all packages
+        # passed as arguments:
+    done
+}
+
+force=
+quiet=
+stow_collection_dir="."
+parse_args () {
+    local OPTIND=1
+    local last_valid_OPTIND=1
+    while getopts ":c:fqhV" opt "$@"; do
+        case "$opt" in
+            c) stow_collection_dir="$OPTARG"
+               last_valid_OPTIND=$OPTIND
+               ;;
+            f) force=1
+               last_valid_OPTIND=$OPTIND
+               ;;
+            q) quiet=1
+               last_valid_OPTIND=$OPTIND
+               ;;
+            h) show_help
+               exit 0
+               last_valid_OPTIND=$OPTIND
+               ;;
+            V) show_version
+               exit 0
+               last_valid_OPTIND=$OPTIND
+               ;;
+        esac
+    done
+    shift $((last_valid_OPTIND-1))
+    stow_options=$@
+}
+
+die () {
+    [[ "$1" ]] && echo "$script_name: $1" >&2
+    exit 1
+}
+
+die_usage () {
+    [[ "$1" ]] && echo "$script_name: $1" >&2
+    echo "$usage_msg" >&2
+    exit 1
+}
+
+show_help () {
+    printf "$help_msg"
+}
+
+show_version () {
+    printf "$version_msg"
+}
+
+not_being_sourced && main "$@"
+
