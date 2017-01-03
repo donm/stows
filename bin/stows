@@ -90,8 +90,8 @@ main () {
              # Send the stow package names (dirnames without slashes) to xargs. I do
              # not see a way to do this with exec/execdir in find without creating
              # subprocesses.
-            find -L . -mindepth 1 -maxdepth 1 -type d -printf "%f\0" | \
-            xargs -0 stow $stow_options)
+             find -L . -mindepth 1 -maxdepth 1 -type d ! -name ".*" -printf "%f\0" | \
+                 xargs -0 stow $stow_options)
 
         # While looping over the packages is simpler than the find statement, it
         # can take much longer than running stow one time with all packages

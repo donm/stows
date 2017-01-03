@@ -1,0 +1,9 @@
+
+bin/stows,270
+not_being_sourced () { [[ "$0" == "$BASH_SOURCE" ]]; }not_being_sourced74,3214
+main () {main78,3314
+parse_args () {parse_args105,4312
+die () {die133,5004
+die_usage () {die_usage138,5073
+show_help () {show_help144,5174
+show_version () {show_version148,5215
