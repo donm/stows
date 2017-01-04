@@ -58,7 +58,7 @@ documentation.)
 If the target directory is not given on the command line or in a .stowrc file,
 stow will use the stows collection directory as the target (since it is the
 parent directory of each stow directory); this is almost definitely not what you
-want. "
+want.\n"
 
 readonly usage_msg="Try '$script_name' -h' for more information."
 
